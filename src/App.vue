@@ -74,7 +74,12 @@ async function pickOutputDirViaDialog() {
 }
 
 async function loadFfmpegPath() {
-  ffmpegPath.value = (await invoke<string | null>("get_ffmpeg_path_configured")) ?? null;
+  const available = await invoke<boolean>("is_ffmpeg_available");
+  if (available) {
+    ffmpegPath.value = null;
+  } else {
+    ffmpegPath.value = (await invoke<string | null>("get_ffmpeg_path_configured")) ?? null;
+  }
 }
 
 async function saveFfmpegPath() {
@@ -299,6 +304,7 @@ loadFfmpegPath();
           <a-button @click="pickFfmpegViaDialog">Выбрать…</a-button>
           <a-button @click="saveFfmpegPath">Сохранить</a-button>
         </a-space>
+        <a-typography-text type="secondary">Приложение попробует найти ffmpeg в PATH автоматически.</a-typography-text>
         <a-space>
           <a-button type="primary" :disabled="!pdfFile || !videoPath || !pageCount" @click="gotoPreview">Далее</a-button>
         </a-space>

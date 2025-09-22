@@ -2,40 +2,7 @@ use crate::core::{apply_quality, build_ffmpeg_args, build_images_to_video_args, 
 use crate::domain::CompositionRequest;
 use base64::Engine as _;
 use serde::Deserialize;
-use std::fs;
-use std::path::PathBuf;
-use std::process::Command;
-
-#[derive(serde::Serialize, serde::Deserialize, Default)]
-struct FfmpegConfig {
-    path: Option<String>,
-}
-
-fn config_file_path() -> Option<PathBuf> {
-    dirs::config_dir().map(|d| d.join("SlideCast").join("config.json"))
-}
-
-fn load_config() -> FfmpegConfig {
-    if let Some(p) = config_file_path() {
-        if let Ok(bytes) = fs::read(&p) {
-            if let Ok(cfg) = serde_json::from_slice::<FfmpegConfig>(&bytes) {
-                return cfg;
-            }
-        }
-    }
-    FfmpegConfig::default()
-}
-
-fn save_config(cfg: &FfmpegConfig) -> Result<(), String> {
-    if let Some(p) = config_file_path() {
-        if let Some(parent) = p.parent() {
-            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-        }
-        let bytes = serde_json::to_vec_pretty(cfg).map_err(|e| e.to_string())?;
-        fs::write(&p, bytes).map_err(|e| e.to_string())?
-    }
-    Ok(())
-}
+use std::process::{Command, Stdio};
 
 fn ffmpeg_path() -> String {
     if let Ok(p) = std::env::var("SLIDECAST_FFMPEG") {
@@ -43,15 +10,19 @@ fn ffmpeg_path() -> String {
             return p;
         }
     }
-    let cfg = load_config();
-    if let Some(p) = cfg.path {
-        return p;
+    if which::which("ffmpeg").is_ok() {
+        return "ffmpeg".into();
     }
     if cfg!(target_os = "windows") {
         "ffmpeg.exe".into()
     } else {
         "ffmpeg".into()
     }
+}
+
+#[tauri::command]
+pub fn is_ffmpeg_available() -> bool {
+    which::which("ffmpeg").is_ok()
 }
 #[derive(Debug, Deserialize)]
 pub struct PdfCountArgs {
@@ -93,7 +64,11 @@ pub async fn compose_video(args: ComposeArgs) -> Result<(), String> {
 
     // stream progress from ffmpeg through stderr lines with -progress pipe:2
     let mut cmd = Command::new(ffmpeg_path());
-    cmd.args(["-progress", "pipe:2"]).args(&args.0);
+    cmd.args(["-progress", "pipe:2"])
+        .args(&args.0)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped());
     let status = cmd.status().map_err(|e| e.to_string())?;
     if !status.success() {
         return Err(format!("ffmpeg failed with status: {status}"));
@@ -234,14 +209,13 @@ pub async fn build_slides_video_with_durations(
 
 #[tauri::command]
 pub fn get_ffmpeg_path_configured() -> Result<Option<String>, String> {
-    Ok(load_config().path)
+    Ok(None)
 }
 
 #[tauri::command]
 pub fn set_ffmpeg_path_configured(path: Option<String>) -> Result<(), String> {
-    let mut cfg = load_config();
-    cfg.path = path;
-    save_config(&cfg)
+    let _ = path;
+    Ok(())
 }
 
 #[derive(Debug, Deserialize)]

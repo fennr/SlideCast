@@ -13,6 +13,7 @@ pub fn run() {
             tauri_commands::compose_video,
             tauri_commands::get_ffmpeg_path_configured,
             tauri_commands::set_ffmpeg_path_configured,
+            tauri_commands::is_ffmpeg_available,
             tauri_commands::save_slide_image,
             tauri_commands::build_slides_video,
             tauri_commands::create_temp_dir,
