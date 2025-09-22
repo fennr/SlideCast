@@ -3,7 +3,6 @@ import { ref, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { readFile } from "@tauri-apps/plugin-fs";
-import PdfPreview from "./components/PdfPreview.vue";
 import SinglePagePreview from "./components/SinglePagePreview.vue";
 
 type OverlayPosition = "top-left" | "top-right" | "bottom-left" | "bottom-right";
